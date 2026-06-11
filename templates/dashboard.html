@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EnviroSense | IoT Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#080e1a;color:#dde4f0;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh}
+.header{background:#0d1627;border-bottom:1px solid #1e2f52;padding:.9rem 2rem;display:flex;align-items:center;justify-content:space-between}
+.logo{font-size:1.2rem;font-weight:700;color:#38bdf8;letter-spacing:2px}
+.live-dot{width:9px;height:9px;border-radius:50%;background:#22c55e;display:inline-block;animation:pulse 2s infinite;margin-right:7px}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.live-tag{color:#22c55e;font-size:.8rem;font-weight:600}
+.ts-label{color:#4b5563;font-size:.78rem}
+.wrap{max-width:1360px;margin:0 auto;padding:1.4rem 2rem}
+.metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:.9rem;margin-bottom:1.2rem}
+.card{background:#0f1b30;border:1px solid #1a2e52;border-radius:12px;padding:1.1rem 1.2rem;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.c-temp::before{background:linear-gradient(90deg,#f97316,#ef4444)}
+.c-hum::before{background:linear-gradient(90deg,#3b82f6,#06b6d4)}
+.c-mot::before{background:linear-gradient(90deg,#a855f7,#ec4899)}
+.c-hi::before{background:linear-gradient(90deg,#eab308,#f97316)}
+.c-com::before{background:linear-gradient(90deg,#22c55e,#84cc16)}
+.card-label{font-size:.72rem;color:#52627a;text-transform:uppercase;letter-spacing:.8px;margin-bottom:.4rem}
+.card-val{font-size:1.9rem;font-weight:700;line-height:1.1}
+.unit{font-size:.85rem;color:#64748b;margin-left:3px}
+.orange{color:#f97316}.blue{color:#3b82f6}.purple{color:#a855f7}.yellow{color:#eab308}.green{color:#22c55e}
+.stat-row{display:grid;grid-template-columns:repeat(5,1fr);gap:.9rem;margin-bottom:1.2rem}
+.stat{background:#0b1524;border:1px solid #152038;border-radius:8px;padding:.7rem 1rem;text-align:center}
+.stat-lbl{font-size:.68rem;color:#374151;text-transform:uppercase;letter-spacing:.6px}
+.stat-val{font-size:1.15rem;font-weight:700;color:#38bdf8}
+.charts{display:grid;grid-template-columns:2fr 1fr;gap:1rem;margin-bottom:1.2rem}
+.chart-card{background:#0f1b30;border:1px solid #1a2e52;border-radius:12px;padding:1.1rem}
+.chart-title{font-size:.75rem;color:#4b5563;text-transform:uppercase;letter-spacing:.8px;margin-bottom:.9rem;display:flex;align-items:center;gap:6px}
+.dot{width:6px;height:6px;border-radius:50%}
+.events-panel{background:#0f1b30;border:1px solid #1a2e52;border-radius:12px;padding:1.1rem}
+.elist{max-height:280px;overflow-y:auto}
+.ev{padding:.55rem .75rem;margin-bottom:.35rem;border-radius:7px;font-size:.8rem;border-left:3px solid;display:flex;flex-direction:column;gap:3px}
+.ev-INFO{background:#0d2018;border-color:#22c55e}
+.ev-WARNING{background:#221a08;border-color:#eab308}
+.ev-CRITICAL{background:#200c0c;border-color:#ef4444}
+.ev-EMERGENCY{background:#2d0808;border-color:#dc2626;animation:blink 1.2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.55}}
+.ev-rule{font-weight:600;color:#dde4f0}
+.ev-action{color:#6b7280}
+.ev-time{color:#374151;font-size:.72rem}
+.no-ev{color:#1f2937;text-align:center;padding:2rem;font-style:italic}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:#080e1a}
+::-webkit-scrollbar-thumb{background:#1e2f52;border-radius:2px}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="logo">&#x26A1; ENVIROSENSE </div>
+  <div class="ts-label" id="last-ts">Waiting...</div>
+  <div class="live-tag"><span class="live-dot"></span>LIVE</div>
+  <div id="hw-status" style="font-size:.78rem; padding:3px 10px; border-radius:20px;
+     background:#0f2a1a; color:#22c55e; border:1px solid #22c55e;">
+  ⬤ Checking...
+</div>
+</div>
+
+<div class="wrap">
+  <div class="metrics">
+    <div class="card c-temp">
+      <div class="card-label">&#127777;&#65039; Temperature</div>
+      <div class="card-val orange" id="v-temp">--<span class="unit">°C</span></div>
+    </div>
+    <div class="card c-hum">
+      <div class="card-label">&#128167; Humidity</div>
+      <div class="card-val blue" id="v-hum">--<span class="unit">%</span></div>
+    </div>
+    <div class="card c-mot">
+      <div class="card-label">&#127919; Motion</div>
+      <div class="card-val purple" id="v-mot">--</div>
+    </div>
+    <div class="card c-hi">
+      <div class="card-label">&#128293; Heat Index</div>
+      <div class="card-val yellow" id="v-hi">--<span class="unit">°C</span></div>
+    </div>
+    <div class="card c-com">
+      <div class="card-label">&#128522; Comfort</div>
+      <div class="card-val green" id="v-com" style="font-size:1.1rem">--</div>
+    </div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat"><div class="stat-lbl">Avg Temp</div><div class="stat-val" id="s-tavg">--</div></div>
+    <div class="stat"><div class="stat-lbl">Max Temp</div><div class="stat-val" id="s-tmax">--</div></div>
+    <div class="stat"><div class="stat-lbl">Min Temp</div><div class="stat-val" id="s-tmin">--</div></div>
+    <div class="stat"><div class="stat-lbl">Avg Humidity</div><div class="stat-val" id="s-havg">--</div></div>
+    <div class="stat"><div class="stat-lbl">Motion Events</div><div class="stat-val" id="s-mot">--</div></div>
+  </div>
+
+  <div class="charts">
+    <div class="chart-card">
+      <div class="chart-title">
+        <span class="dot" style="background:#38bdf8"></span>
+        Temperature &amp; Humidity History
+      </div>
+      <canvas id="mainChart" height="100"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">
+        <span class="dot" style="background:#eab308"></span>
+        Heat Index Trend
+      </div>
+      <canvas id="hiChart" height="100"></canvas>
+    </div>
+  </div>
+
+  <div class="events-panel">
+    <div class="chart-title" style="margin-bottom:.8rem">
+      <span class="dot" style="background:#ef4444"></span>
+      Automation Events Log
+    </div>
+    <div class="elist" id="ev-list">
+      <div class="no-ev">Waiting for automation triggers...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const chartOpts = {
+  responsive:true, animation:false,
+  plugins:{legend:{labels:{color:'#4b5563',font:{size:11}}}},
+  scales:{
+    x:{grid:{color:'#0f1e38'},ticks:{color:'#374151',maxTicksLimit:8,font:{size:10}}},
+    y:{grid:{color:'#0f1e38'},ticks:{color:'#374151',font:{size:10}}}
+  }
+};
+const mainChart = new Chart(document.getElementById('mainChart').getContext('2d'),{
+  type:'line',
+  data:{labels:[],datasets:[
+    {label:'Temp (°C)',data:[],borderColor:'#f97316',backgroundColor:'rgba(249,115,22,.06)',
+     tension:.4,fill:true,pointRadius:0},
+    {label:'Humidity (%)',data:[],borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,.06)',
+     tension:.4,fill:true,pointRadius:0,yAxisID:'y1'}
+  ]},
+  options:{...chartOpts,scales:{...chartOpts.scales,
+    y:{...chartOpts.scales.y,position:'left'},
+    y1:{position:'right',grid:{drawOnChartArea:false,color:'#0f1e38'},
+        ticks:{color:'#374151',font:{size:10}}}}}
+});
+const hiChart = new Chart(document.getElementById('hiChart').getContext('2d'),{
+  type:'line',
+  data:{labels:[],datasets:[
+    {label:'Heat Index (°C)',data:[],borderColor:'#eab308',
+     backgroundColor:'rgba(234,179,8,.1)',tension:.4,fill:true,pointRadius:0}
+  ]},
+  options:chartOpts
+});
+
+async function refreshCurrent(){
+  const r=await fetch('/api/current'); if(!r.ok)return;
+  const d=await r.json(); if(!d.timestamp)return;
+  document.getElementById('v-temp').innerHTML=d.temperature_c+'<span class="unit">°C</span>';
+  document.getElementById('v-hum').innerHTML=d.humidity_pct+'<span class="unit">%</span>';
+  document.getElementById('v-mot').textContent=d.motion_detected?'DETECTED':'CLEAR';
+  document.getElementById('v-hi').innerHTML=d.heat_index_c+'<span class="unit">°C</span>';
+  document.getElementById('v-com').textContent=d.comfort_level||'--';
+  document.getElementById('last-ts').textContent='Last: '+new Date(d.timestamp).toLocaleTimeString();
+}
+async function refreshStats(){
+  const r=await fetch('/api/stats'); if(!r.ok)return;
+  const s=await r.json(); if(!s.temp_avg)return;
+  document.getElementById('s-tavg').textContent=s.temp_avg+'°C';
+  document.getElementById('s-tmax').textContent=s.temp_max+'°C';
+  document.getElementById('s-tmin').textContent=s.temp_min+'°C';
+  document.getElementById('s-havg').textContent=s.hum_avg+'%';
+  document.getElementById('s-mot').textContent=s.motion_count;
+}
+async function refreshCharts(){
+  const r=await fetch('/api/history'); if(!r.ok)return;
+  const h=await r.json(); if(!h.length)return;
+  const rec=h.slice(-50);
+  const labels=rec.map(d=>new Date(d.timestamp).toLocaleTimeString());
+  mainChart.data.labels=labels;
+  mainChart.data.datasets[0].data=rec.map(d=>d.temperature_c);
+  mainChart.data.datasets[1].data=rec.map(d=>d.humidity_pct);
+  mainChart.update('none');
+  hiChart.data.labels=labels;
+  hiChart.data.datasets[0].data=rec.map(d=>d.heat_index_c);
+  hiChart.update('none');
+}
+async function refreshEvents(){
+  const r=await fetch('/api/events'); if(!r.ok)return;
+  const evs=await r.json();
+  const list=document.getElementById('ev-list');
+  if(!evs.length){list.innerHTML='<div class="no-ev">Waiting for automation triggers...</div>';return;}
+  list.innerHTML=[...evs].reverse().slice(0,15).map(e=>`
+    <div class="ev ev-${e.level}">
+      <span class="ev-rule">${e.level} &rarr; ${e.rule}</span>
+      <span class="ev-action">&#x26A1; ${e.action}</span>
+      <span class="ev-time">${new Date(e.timestamp).toLocaleString()}</span>
+    </div>`).join('');
+}
+
+refreshCurrent(); refreshStats(); refreshCharts(); refreshEvents();
+setInterval(refreshCurrent, 2000);
+setInterval(refreshStats,   4000);
+setInterval(refreshCharts,  4000);
+setInterval(refreshEvents,  3000);
+  async function refreshHardware() {
+  const r = await fetch('/api/hardware');
+  if (!r.ok) return;
+  const h = await r.json();
+  const el = document.getElementById('hw-status');
+  if (h.connected) {
+    el.textContent = '⬤ ESP32 Connected';
+    el.style.color = '#22c55e';
+    el.style.borderColor = '#22c55e';
+    el.style.background = '#0f2a1a';
+  } else {
+    el.textContent = '◯ Simulation Mode';
+    el.style.color = '#6b7280';
+    el.style.borderColor = '#374151';
+    el.style.background = '#111827';
+  }
+}
+
+refreshHardware();
+setInterval(refreshHardware, 5000);
+</script>
+</body>
+</html>

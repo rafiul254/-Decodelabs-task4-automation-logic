@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.idea/
+.vscode/
+venv/
+Lib/
+Scripts/
+CACHEDIR.TAG
+data/
+firmware/.pio/
+firmware/.vscode/
